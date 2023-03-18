@@ -37,7 +37,7 @@ class Neighborhood:
         return x
 
     def calculatel2(self, original_sample, new_sample):
-        return np.sqrt(np.sum((original_sample - new_sample) ** 2))
+        return cdist(original_sample, new_sample, 'euclidean')
 
     def generate_probabilities(self, n):
         center = (n - 1) / 2
