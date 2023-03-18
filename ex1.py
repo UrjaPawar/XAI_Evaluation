@@ -28,7 +28,7 @@ def get_data(hot_encode):
         data = Data("Diabetes DB", hot_encode, pick_without_insulin=True)
     return data
 
-input_data = {"data": "diab_without_insulin", "classifier": "MLP", "fold": "fold1"}
+input_data = {"data": "diab_without_insulin", "classifier": "SVM", "fold": "fold1"}
 path = "analysis_outputs/" + input_data["data"] + "/" + input_data["fold"]
 
 test_inds = joblib.load(path + "/test")
@@ -169,6 +169,50 @@ def ex1(sample_for_ex1, k, scores, output, clf):
     # for feat in features[inds_sorted[-k:]]:
     #     nbr_ex1 = nbr_ex1[nbr_ex1[feat]!=sample_for_ex1[feat]]
 
+ex1s_none = []
+ex2s_none = []
+ex3s_none = []
+ex1s_prob = []
+ex2s_prob = []
+ex3s_prob = []
+for nbr_json in ["none","prob"]:
+    for top_k in tqdm([1,2,3,4]):
+        ex1 = []
+        ex2 = []
+        ex3 = []
+        for clf_name in ["MLP", "SVM", "log_clf"]:
+            dump_path = input_data['data'] + "/" + nbr_json + "/" + clf_name + "/"
+            suff_nece_corrs = joblib.load(dump_path+"suff_nece_corr_"+str(top_k))
+            ex_scores = joblib.load(dump_path+"ex_score_list_"+str(top_k))
+            exs = np.array(ex_scores)
+            ex1.append(np.mean(exs[:, 0], axis=0))
+            ex2.append(np.mean(exs[:, 1], axis=0))
+            ex3.append(np.mean(exs[:, 2], axis=0))
+        if nbr_json=="none":
+            ex1s_none.append(ex1)
+            ex2s_none.append(ex2)
+            ex3s_none.append(ex3)
+        else:
+            ex1s_prob.append(ex1)
+            ex2s_prob.append(ex2)
+            ex3s_prob.append(ex3)
+
+ticks = ["shap_old", "lime_old", "suff_mb_false", "nece_mb_false"]
+clfs = ["MLP", "SVM", "log_clf"]
+for top_k in [1,2,3,4]:
+    dump_path = input_data['data'] + "/" + "prob" + "/"
+    df_1 = pd.DataFrame(data=ex1s_prob[top_k-1], columns=ticks)
+    df_1.index = clfs
+    ax = df_1.plot.bar()
+    ax.set_title("Explanandum 1, with top "+str(top_k)+" features")
+    plt.savefig(dump_path+"ex1_top_"+str(top_k)+".png")
+    plt.clf()
+# df_2 = pd.DataFrame(data=ex1s_none[1], columns=ticks)
+# df_3 = pd.DataFrame(data=ex1s_none[2], columns=ticks)
+# df_4 = pd.DataFrame(data=ex1s_none[3], columns=ticks)
+print("ok")
+
+
 # TODO check with use range =True explanandums
 neighborhood_json_none = {"no_of_neighbours": 500, "probability": False, "bound": True,"use_range": False, "truly_random": True}
 neighborhood_json_prob_range = {"no_of_neighbours": 500, "probability": True, "bound": True,"use_range": True, "truly_random": True}
@@ -191,7 +235,7 @@ nbr_dict = {
 
 less_correlated = [44, 6, 32, 35]
 high_correlated = [4, 13, 56, 40]
-for top_k in tqdm([1,2,3,4,5,6]):
+for top_k in tqdm([5,6]):
     for nbr_json in ["none","prob"]:
         ex_score_list = []
         suff_nece_corr = []
