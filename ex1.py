@@ -15,7 +15,9 @@ from sklearn.linear_model import LogisticRegression
 from sklearn import svm
 from sklearn.neural_network import MLPClassifier
 import statistics
+import warnings
 
+warnings.filterwarnings("ignore")
 def get_data(hot_encode):
     data = None
     if input_data["data"] == "heart_db":
@@ -26,7 +28,7 @@ def get_data(hot_encode):
         data = Data("Diabetes DB", hot_encode, pick_without_insulin=True)
     return data
 
-input_data = {"data": "heart_db", "classifier": "log_clf", "fold": "fold1"}
+input_data = {"data": "diab_without_insulin", "classifier": "MLP", "fold": "fold1"}
 path = "analysis_outputs/" + input_data["data"] + "/" + input_data["fold"]
 
 test_inds = joblib.load(path + "/test")
@@ -57,7 +59,7 @@ def get_recall():
     return recall_score(clf.predict(data.df[data.features].iloc[test_inds][data.features]),
                         data.df.iloc[test_inds][data.target])
 
-
+# nbrhood of suff and nece, toy d
 context = Neighborhood(data)
 
 
@@ -106,8 +108,11 @@ shap_org = SHAP_LIME(clf, data, train_inds, input_data["classifier"], custom_nei
 
 features = np.array(data.features)
 
+# featurestoy_data_continuous =
+# toy_data_categorical =
+# toy_data_binary =
 def ex3(sample_for_ex3, n, scores, output, clf):
-    total=0
+    total = 0
     points = 0
     for i in range(200):
         features_to_change_from = np.random.choice(len(features), n, replace=False)
@@ -130,20 +135,27 @@ def ex3(sample_for_ex3, n, scores, output, clf):
     else: return -1
     # at random stage selection excluding n features
 
-
+# less dense more dense
 def ex2(sample_for_ex2, k, scores, output, clf):
+    # changing rest of the features and keeping top k features constant could also be tried
     inds_sorted = np.argsort(scores)
-    mean_sample = sample_for_ex2.copy()
-    for feat in features[inds_sorted[-k:]]:
-        if feat in data.continuous:
-            mean_sample[feat] = round(np.mean(traindf[feat]),data.dec_precisions[feat])
-        else:
-            mean_sample[feat]= statistics.mode(traindf[feat])
-    original = clf.predict_proba([sample_for_ex2])[0][output]
-    new_op = clf.predict_proba([mean_sample])[0][output]
-    return abs(original-new_op)/new_op
+    # mean_sample = sample_for_ex2.copy()
+    nbr_ex1 = context.generate_neighbourhood(features[inds_sorted[-k:]], sample_for_ex2, data.features, 200, False, True,
+                                             False, True)
+    outputs = clf.predict(nbr_ex1)
+    return len(outputs[outputs == output]) / len(outputs)
+    # for feat in features[inds_sorted[:k]]:
+    #     if feat in data.continuous:
+    #         mean_sample[feat] = round(np.mean(traindf[feat]),data.dec_precisions[feat])
+    #     else:
+    #         mean_sample[feat] = statistics.mode(traindf[feat])
+    # original = clf.predict_proba([sample_for_ex2])[0][output]
+    # new_op = clf.predict([mean_sample])[0]
+    # if new_op == output:
+    #     return 1
+    # else: return 0
 
-def ex1(sample_for_ex1, k, randomness, scores, output, clf):
+def ex1(sample_for_ex1, k, scores, output, clf):
     inds_sorted = np.argsort(scores)
     inds_to_fix = inds_sorted[:-k]
     nbr_ex1 = context.generate_neighbourhood(features[inds_to_fix], sample_for_ex1, data.features, 200, False, True,
@@ -157,73 +169,100 @@ def ex1(sample_for_ex1, k, randomness, scores, output, clf):
     # for feat in features[inds_sorted[-k:]]:
     #     nbr_ex1 = nbr_ex1[nbr_ex1[feat]!=sample_for_ex1[feat]]
 
+# TODO check with use range =True explanandums
+neighborhood_json_none = {"no_of_neighbours": 500, "probability": False, "bound": True,"use_range": False, "truly_random": True}
+neighborhood_json_prob_range = {"no_of_neighbours": 500, "probability": True, "bound": True,"use_range": True, "truly_random": True}
+neighborhood_json_prob = {"no_of_neighbours": 500, "probability": True, "bound": True,"use_range": False, "truly_random": True}
+neighborhood_json_range = {"no_of_neighbours": 500, "probability": False, "bound": True,"use_range": True, "truly_random": True}
 
-neighborhood_json = {"no_of_neighbours": 500, "probability": False, "bound": True,"use_range": True, "truly_random": True}
-# neighborhood_json_prob = {"no_of_neighbours": 500, "probability": True, "bound": True,"use_range": True, "truly_random": True}
-
-shap_nece = []
-shap_suff = []
-shap_mean = []
-shap_nece2 = []
-shap_suff2 = []
-shap_mean2 = []
-ex_score_list = []
+# nbr_json = "none"
+nbr_dict = {
+    "none":neighborhood_json_none,
+    "prob":neighborhood_json_prob,
+    "range":neighborhood_json_range,
+    "prob_range":neighborhood_json_prob_range
+}
+# shap_nece = []
+# shap_suff = []
+# shap_mean = []
+# shap_nece2 = []
+# shap_suff2 = []
+# shap_mean2 = []
 
 less_correlated = [44, 6, 32, 35]
 high_correlated = [4, 13, 56, 40]
-for ind in tqdm(range(len(testdf))):
-    original_sample = testdf[data.features].iloc[ind].copy()
-    output = clf.predict([original_sample])[0]
-    # nbr = context.generate_neighbourhood([], original_sample, data.features, neighborhood_json["no_of_neighbours"],
-    #                                      neighborhood_json["probability"], neighborhood_json["bound"],
-    #                                      neighborhood_json["use_range"],
-    #                                      neighborhood_json["truly_random"])
-    # outputs = clf.predict(nbr)
-    # nbr = nbr[outputs!=output]
+for top_k in tqdm([1,2,3,4,5,6]):
+    for nbr_json in ["none","prob"]:
+        ex_score_list = []
+        suff_nece_corr = []
+        dump_path = input_data['data'] + "/" + nbr_json + "/" + input_data["classifier"] + "/"
+        for ind in tqdm(range(len(testdf))):
 
-    # shap_lime = SHAP_LIME(clf, data, train_inds, input_data["classifier"], custom_neighborhood=nbr)
-    # lime_old = get_lime(original_sample,True,nbr)
-    # lime_new = get_lime(original_sample,False,nbr)
-    #
-    # shap_new = shap_lime.get_shap_vals(original_sample)
-    # shap_old = shap_org.get_shap_vals(original_sample)
-    #
-    # shap_old = [abs(score) for score in shap_old]
-    # shap_new = [abs(score) for score in shap_new]
-    #
-    # lime_old =  [abs(score) for score in lime_old]
-    # lime_new =  [abs(score) for score in lime_new]
+            original_sample = testdf[data.features].iloc[ind].copy()
+            output = clf.predict([original_sample])[0]
+            nbr = context.generate_neighbourhood([], original_sample, data.features, 2000,False, True, False, True)
+            dists = context.calculatel2(nbr[features],np.array(original_sample).reshape(1, -1))
+            inds = np.argsort(dists[:,0])
+            nbr = nbr.iloc[inds]
+            nbr = nbr.iloc[:500]
+            # outputs = clf.predict(nbr)
+            # nbr = nbr[outputs!=output]
 
-    suff_mb_false = nece_suff.sufficiency(original_sample, clf.predict([original_sample]), clf, traindf[data.features],
-                                        neighborhood_json, use_metric="MB")
-    nece_mb_false = nece_suff.necessity(original_sample, clf.predict([original_sample]), clf, traindf[data.features],
-                                      neighborhood_json, use_metric="MB")
-    suff_euc_false = nece_suff.sufficiency(original_sample, clf.predict([original_sample]), clf, traindf[data.features],
-                                        neighborhood_json, use_metric="Euc")
-    nece_euc_false = nece_suff.necessity(original_sample, clf.predict([original_sample]), clf, traindf[data.features],
-                                      neighborhood_json, use_metric="Euc")
-    # suff_euc_True = nece_suff.sufficiency(original_sample, clf.predict([original_sample]), clf, traindf[data.features],
-    #                                     neighborhood_json_prob, use_metric="Euc")
-    # nece_euc_True = nece_suff.necessity(original_sample, clf.predict([original_sample]), clf, traindf[data.features],
-    #                                   neighborhood_json_prob, use_metric="Euc")
-    # suff_true = nece_suff.sufficiency(original_sample, clf.predict([original_sample]), clf, traindf[data.features],
-    #                                     neighborhood_json_prob, use_metric="None")
-    # nece_true = nece_suff.necessity(original_sample, clf.predict([original_sample]), clf, traindf[data.features],
-    #                                   neighborhood_json_prob, use_metric="None")
-    # suff_false = nece_suff.sufficiency(original_sample, clf.predict([original_sample]), clf, traindf[data.features],
-    #                                     neighborhood_json, use_metric="None")
-    # nece_false = nece_suff.necessity(original_sample, clf.predict([original_sample]), clf, traindf[data.features],
-    #                                   neighborhood_json, use_metric="None")
-    # ex1_scores = []
-    ex2_scores = []
-    # for score in [suff_mb_false,suff_euc_false,suff_euc_True,suff_false,suff_true,nece_mb_false,nece_euc_false,
-    #               nece_euc_True,nece_false,nece_true]: ex1_scores.append(ex1(original_sample, 5, False, score, output, clf))
-    for score in [nece_euc_false, suff_euc_false, suff_mb_false, nece_mb_false]:
-        ex2_scores.append(ex2(original_sample, 8, score, output, clf))
-    ex_score_list.append(ex2_scores)
-plt.bar(list(range(len(ex_score_list[0]))), np.mean(ex_score_list, axis=0))
-plt.xticks(rotation=45)
-plt.show()
+            # shap_lime = SHAP_LIME(clf, data, train_inds, input_data["classifier"], custom_neighborhood=nbr)
+            lime_old = get_lime(original_sample,True,nbr)
+            # lime_new = get_lime(original_sample,False,nbr)
+            #
+            # shap_new = shap_lime.get_shap_vals(original_sample)
+            shap_old = shap_org.get_shap_vals(original_sample)
+            #
+            # shap_old = [abs(score) for score in shap_old]
+            # shap_new = [abs(score) for score in shap_new]
+            #
+            # lime_old =  [abs(score) for score in lime_old]
+            # lime_new =  [abs(score) for score in lime_new]
+
+            suff_mb_false = nece_suff.sufficiency(original_sample, clf.predict([original_sample]), clf, traindf[data.features],
+                                                nbr_dict[nbr_json], use_metric="MB")
+            nece_mb_false = nece_suff.necessity(original_sample, clf.predict([original_sample]), clf, traindf[data.features],
+                                              nbr_dict[nbr_json], use_metric="MB")
+            # suff_euc_false = nece_suff.sufficiency(original_sample, clf.predict([original_sample]), clf, traindf[data.features],
+            #                                     neighborhood_json, use_metric="Euc")
+            # nece_euc_false = nece_suff.necessity(original_sample, clf.predict([original_sample]), clf, traindf[data.features],
+            #                                   neighborhood_json, use_metric="Euc")
+            # suff_euc_True = nece_suff.sufficiency(original_sample, clf.predict([original_sample]), clf, traindf[data.features],
+            #                                     neighborhood_json_prob, use_metric="Euc")
+            # nece_euc_True = nece_suff.necessity(original_sample, clf.predict([original_sample]), clf, traindf[data.features],
+            #                                   neighborhood_json_prob, use_metric="Euc")
+            # suff_true = nece_suff.sufficiency(original_sample, clf.predict([original_sample]), clf, traindf[data.features],
+            #                                     neighborhood_json_prob, use_metric="None")
+            # nece_true = nece_suff.necessity(original_sample, clf.predict([original_sample]), clf, traindf[data.features],
+            #                                   neighborhood_json_prob, use_metric="None")
+            # suff_false = nece_suff.sufficiency(original_sample, clf.predict([original_sample]), clf, traindf[data.features],
+            #                                     neighborhood_json, use_metric="None")
+            # nece_false = nece_suff.necessity(original_sample, clf.predict([original_sample]), clf, traindf[data.features],
+            #                                   neighborhood_json, use_metric="None")
+            suff_nece_corr.append(measure_kendall_correlation(suff_mb_false, nece_mb_false))
+            ex1_scores = []
+            ex2_scores = []
+            ex3_scores = []
+            # for score in [suff_mb_false,suff_euc_false,suff_euc_True,suff_false,suff_true,nece_mb_false,nece_euc_false,
+            #               nece_euc_True,nece_false,nece_true]: ex1_scores.append(ex1(original_sample, 5, False, score, output, clf))
+
+            for score in [shap_old, lime_old, suff_mb_false, nece_mb_false]:
+                ex1_scores.append(ex1(original_sample, top_k, score, output, clf))
+                ex2_scores.append(ex2(original_sample, top_k, score, output, clf))
+                ex3_scores.append(ex3(original_sample, top_k, score, output, clf))
+            ex_score_list.append([ex1_scores, ex2_scores, ex3_scores])
+        dump_path = input_data['data']+"/"+nbr_json+"/"+input_data["classifier"]+"/"
+        joblib.dump(suff_nece_corr, dump_path+"suff_nece_corr_"+str(top_k))
+        joblib.dump(ex_score_list, dump_path+"ex_score_list_"+str(top_k))
+
+# done - log_clf, topk=1, none, diab
+# done - log_clf, topk=1, prob, diab
+
+# plt.bar(list(range(len(ex_score_list[0]))), np.mean(ex_score_list, axis=0))
+# plt.xticks(rotation=45)
+# plt.show()
 # nece euc false for exp 1 with True
     # if ind in less_correlated:
     #     fig, ax = plt.subplots(2, 2)
