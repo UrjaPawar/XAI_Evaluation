@@ -5,36 +5,49 @@ from sklearn.ensemble import RandomForestClassifier
 import shap
 import lime
 import lime.lime_tabular
+import dice_ml
+from density_cluster import Density
 
 
-class SHAP_LIME:
-    def __init__(self, clf, data: Data, train_inds, model_name, custom_neighborhood=None):
+class XAI:
+    def __init__(self, clf, data: Data, train_inds, model_name, density, custom_nbrhood = []):
         self.model = clf
         self.data = data
-        self.train_df = data.df[data.features].iloc[train_inds]
-        self.custom_neighborhood = custom_neighborhood[data.features]
+        self.train_df = data.df[data.features+[data.target]].iloc[train_inds]
+        if len(custom_nbrhood) > 0:
+            self.custom_neighborhood = custom_nbrhood
+        else:
+            self.custom_neighborhood = self.train_df
         self.feats = data.features
         self.model_name = model_name
+        self.density = density
         self.shap_explainer = self.get_shap_explainer()
-        self.lime_explainer = self.get_lime()
-
+        self.dice_explainer = self.get_dice()
 
 
     def get_shap_explainer(self):
-        if self.model_name == "log_clf":
+        if self.model_name == "Log-Reg":
             # return shap.Explainer(self.model, self.train_df[self.feats].iloc[15:25])
-            return shap.Explainer(self.model, self.custom_neighborhood)
+            return shap.Explainer(self.model, self.custom_neighborhood[self.data.features])
         elif self.model_name == "rf_clf":
             return shap.TreeExplainer(self.model)
         if self.model_name == "MLP" or self.model_name == "SVM":
             # masker = shap.maskers.Independent(data = self.train_df[self.feats])
-            masker = shap.maskers.Independent(data=self.custom_neighborhood)
+            if len(self.custom_neighborhood) > 500:
+                masker = shap.maskers.Independent(data=self.custom_neighborhood[self.data.features].iloc[:500])
+            else:
+                masker = shap.maskers.Independent(data=self.custom_neighborhood[self.data.features])
             # gradient and deep explainers might be requiring Image type inputs
             # return shap.KernelExplainer(self.model.predict, data=self.train_df[self.feats], masker=masker)
-            return shap.KernelExplainer(self.model.predict, data=self.custom_neighborhood, masker=masker)
+            if len(self.custom_neighborhood) > 500:
+                return shap.KernelExplainer(self.model.predict, data=self.custom_neighborhood[self.data.features].iloc[:500],
+                                        masker=masker)
+            else:
+                return shap.KernelExplainer(self.model.predict, data=self.custom_neighborhood[self.data.features],
+                                            masker=masker)
 
     def get_shap_vals(self, sample):
-        if self.model_name=="log_clf":
+        if self.model_name == "Log-Reg":
             shap_vals = self.shap_explainer(np.array(sample).reshape(1,-1))[0]
             return shap_vals.values
         elif self.model_name == "rf_clf":
@@ -46,21 +59,32 @@ class SHAP_LIME:
             return shap_vals[0]
             # both classes show different shap values, we need both
 
-    def get_lime(self):
-        return lime.lime_tabular.LimeTabularExplainer(self.custom_neighborhood[self.feats].values[:, :],
-                                                      feature_names=self.feats,
-                                                      class_names=self.data.target,categorical_features=self.data.categorical)
+    def get_lime(self, sample_for_lime, original, nbrhood_=None):
+        if original:
+            clusters = list(self.density.get_cluster(self.train_df[self.data.features]))
+            cluster = self.density.get_cluster([sample_for_lime])[0]
+            nbrhood = self.train_df[clusters == cluster]
+            nbrhood = nbrhood[self.data.features]
+        else:
+            nbrhood = nbrhood_
 
-    def get_lime_values(self, sample):
-        # if self.model_name == "MLP":
-        #     lime_vals = self.lime_explainer.explain_instance(np.array(sample), self.model,
-        #                                                      num_features=len(self.feats))
-        # else:
-        lime_vals = self.lime_explainer.explain_instance(np.array(sample), self.model.predict_proba,
-                                                             num_features=len(self.feats),num_samples=200)
-        scores = []
-        for expln in lime_vals.as_list():
-            for f in self.feats:
-                if f in expln[0]:
-                    scores.append(abs(expln[1]))
-        return scores
+        lime_log = LogisticRegression()
+        lime_log.fit(nbrhood[self.data.features], self.model.predict(nbrhood[self.data.features]))
+        return lime_log.coef_[0]
+
+    def get_dice(self):
+        d_ = dice_ml.Data(dataframe=self.custom_neighborhood[self.data.features+[self.data.target]], continuous_features=self.data.continuous,
+                          outcome_name=self.data.target)
+        m_ = dice_ml.Model(model=self.model, backend="sklearn")
+        return dice_ml.Dice(d_, m_, method="random")
+
+    def get_cf_fi(self, sample, dice_obj, no_of_cf = 100):
+            try:
+                log_fi = dice_obj.local_feature_importance(sample, total_CFs=no_of_cf)
+                fi = log_fi.local_importance[0]
+                res = []
+                for feat in self.data.features:
+                    res.append(fi[feat])
+                return res
+            except ValueError:
+                return None
