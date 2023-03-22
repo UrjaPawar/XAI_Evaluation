@@ -20,45 +20,46 @@ class Nece_Suff:
             # check that the output is same as "output"
             size = neighborhood_json["no_of_neighbours"]
             neighbors = neighbors.iloc[preds == output]
-            # filter out ngihbours with same prediction
-            if use_metric == 'MB':
-                dists = self.neighborhood_obj.calculateMahalanobis(neighbors[self.neighborhood_obj.feats],
-                                                                   np.array(sample).reshape(1, -1),
-                                                                   np.cov(train_df[self.neighborhood_obj.feats].values))
-                inds = np.argsort(dists[:, 0])
-                neighbors = neighbors.iloc[inds]
-            elif use_metric == "Euc":
-                dists = [self.neighborhood_obj.calculatel2(neighbors[self.neighborhood_obj.feats].iloc[i], sample) for i in range(len(neighbors))]
-                inds = np.argsort(dists)
-                neighbors = neighbors.iloc[inds]
-            neighbors = neighbors.iloc[:size]
-            if feat not in self.neighborhood_obj.continuous:
-                select = self.neighborhood_obj.feature_range[feat]
-                if sample[feat] in select:
-                    select = self.remove_values_from_list(select,sample[feat])
-                neighbors[feat] = np.random.choice(select, len(neighbors))
-            elif self.neighborhood_obj.precisions[feat] == 0:
-                select = list(range(int(self.neighborhood_obj.mini[feat]), int(self.neighborhood_obj.maxi[feat])))
-                if sample[feat] in select:
-                    select = self.remove_values_from_list(select,sample[feat])
-                neighbors[feat] = np.random.choice(select, len(neighbors))
+
+            if len(neighbors)==0:
+                print(feat, sample)
+                score = 0
             else:
-                select = list(np.random.uniform(self.neighborhood_obj.mini[feat], self.neighborhood_obj.maxi[feat], 2 * len(neighbors)))
-                select = [round(r, self.neighborhood_obj.precisions[feat]) for r in select]
-                if sample[feat] in select:
-                    select = self.remove_values_from_list(select,sample[feat])
-                select = select[:len(neighbors)]
-                neighbors[feat] = select
-            check = list(neighbors[feat]==sample[feat])
+            # filter out ngihbours with same prediction
+                if use_metric == 'MB':
+                    dists = self.neighborhood_obj.calculateMahalanobis(neighbors[self.neighborhood_obj.feats],
+                                                                       np.array(sample).reshape(1, -1),
+                                                                       np.cov(train_df[self.neighborhood_obj.feats].values))
+                    inds = np.argsort(dists[:, 0])
+                    neighbors = neighbors.iloc[inds]
+                elif use_metric == "Euc":
+                    dists = self.neighborhood_obj.calculatel2(neighbors[self.neighborhood_obj.feats], np.array(sample).reshape(1, -1))
+                    inds = np.argsort(dists[:,0])
+                    neighbors = neighbors.iloc[inds]
+                neighbors = neighbors.iloc[:size]
+                if feat not in self.neighborhood_obj.continuous:
+                    select = self.neighborhood_obj.feature_range[feat]
+                    if sample[feat] in select:
+                        select = self.remove_values_from_list(select,sample[feat])
+                    neighbors[feat] = np.random.choice(select, len(neighbors))
+                elif self.neighborhood_obj.precisions[feat] == 0:
+                    select = list(range(int(self.neighborhood_obj.mini[feat]), int(self.neighborhood_obj.maxi[feat])))
+                    if sample[feat] in select:
+                        select = self.remove_values_from_list(select,sample[feat])
+                    neighbors[feat] = np.random.choice(select, len(neighbors))
+                else:
+                    select = list(np.random.uniform(self.neighborhood_obj.mini[feat], self.neighborhood_obj.maxi[feat], 2 * len(neighbors)))
+                    select = [round(r, self.neighborhood_obj.precisions[feat]) for r in select]
+                    if sample[feat] in select:
+                        select = self.remove_values_from_list(select,sample[feat])
+                    select = select[:len(neighbors)]
+                    neighbors[feat] = select
             # if sum([int(ch) for ch in check])==0:
             #     print("check successful")
             # else: print("check unsuccessful",feat)
-            if len(neighbors)==0:
-                print(feat, sample)
-                score = -2
-            else:
+
                 preds = model.predict(neighbors)
-            # neighbors['Colestrol'].hist().show()
+                # neighbors['Colestrol'].hist().show()
                 score = sum((preds != output).astype(int)) / len(neighbors)
             scores.append(round(score, 2))
         return scores
@@ -78,18 +79,19 @@ class Nece_Suff:
             size = neighborhood_json["no_of_neighbours"]
             # filter out neighbours with different preds
             neighbors = neighbors.iloc[preds != output]
-            if len(neighbors)==0:
+            if len(neighbors) == 0:
                 print(feat, sample)
-                score = -2
+                score = 0
             else:
                 if use_metric=="MB":
                     dists = self.neighborhood_obj.calculateMahalanobis(neighbors[self.neighborhood_obj.feats], np.array(sample).reshape(1,-1), np.cov(train_df[self.neighborhood_obj.feats].values))
                     inds = np.argsort(dists[:, 0])
                     neighbors = neighbors.iloc[inds]
                 elif use_metric == "Euc":
-                    dists = [self.neighborhood_obj.calculatel2(neighbors[self.neighborhood_obj.feats].iloc[i], sample) for i
-                             in range(len(neighbors))]
-                    inds = np.argsort(dists)
+                    dists = self.neighborhood_obj.calculatel2(neighbors[self.neighborhood_obj.feats],
+                                                              np.array(sample).reshape(1, -1))
+
+                    inds = np.argsort(dists[:,0])
                     neighbors = neighbors.iloc[inds]
                 neighbors = neighbors.iloc[:size]
                 if len(neighbors) > 0:

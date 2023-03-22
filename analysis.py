@@ -306,7 +306,7 @@ def get_clusters(ind):
 #             # for cerv
 #             for expln in lime_vals.as_list():
 #                 scores.append(abs(expln[1]))
-#             # for heart
+#             # for heart_db
 #             # for expln in lime_vals.as_list():
 #             #     for f in obj.feats:
 #             #         if f in expln[0]:
@@ -326,7 +326,7 @@ def get_clusters(ind):
 #             # for cerv
 #             for expln in lime_vals.as_list():
 #                 scores.append(abs(expln[1]))
-#             # for heart
+#             # for heart_db
 #             # for expln in lime_vals.as_list():
 #             #     for f in obj.feats:
 #             #         if f in expln[0]:

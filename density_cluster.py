@@ -6,15 +6,14 @@ from sklearn.cluster import KMeans
 import pandas as pd
 
 class Density:
-    def __init__(self, data: Data):
+    def __init__(self, data: Data, train_inds):
         self.data = data
-        self.data_kde = None
+        self.train_df = self.data.df.iloc[train_inds]
+        self.data_kde = KernelDensity(kernel="gaussian", bandwidth=0.2).fit(self.train_df[self.data.features])
         self.clusterer = self.k_means_clusterer(4)
         self.cluster_precedence = self.data.cluster_order
 
-
     def get_density_score(self, data_samples):
-        self.data_kde = KernelDensity(kernel="gaussian", bandwidth=0.2).fit(self.data.train_df[self.data.features])
         return self.data_kde.score_samples(data_samples)
 
     def get_clusters(self, ind:int, sample:pd.Series):
@@ -56,7 +55,7 @@ class Density:
         return clusters
 
     def k_means_clusterer(self, n):
-        return KMeans(n_clusters=n, random_state=2).fit(self.data.train_df[self.data.features])
+        return KMeans(n_clusters=n, random_state=2).fit(self.train_df[self.data.features])
 
     def get_cluster(self, samples):
         return self.clusterer.predict(samples)

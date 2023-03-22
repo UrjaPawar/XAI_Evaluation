@@ -17,8 +17,6 @@ class Data:
         self.dec_precisions = {}
         self.changes_allowed = {}
         self.cluster_order = []
-        self.train_df = pd.DataFrame()
-        self.test_df = pd.DataFrame()
         self.features = []
         self.target = []
         self.categorical = []
@@ -39,7 +37,8 @@ class Data:
             self.one_hot_encode()
         else:
             self.encoded_df = self.df
-        self.split_data(test_split, shuffle_while_training, random_state)
+
+        # self.split_data(test_split, shuffle_while_training, random_state)
 
 
     def remove_missing_vals(self, filepath, missing_arr):

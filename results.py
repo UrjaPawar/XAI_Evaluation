@@ -436,7 +436,7 @@ print("oj")
 #
 '''
 results:
-heart db:
+heart_db db:
     with random neighbors + replacement with sample vs custom FI
     log_clf = 58 vs 32
     rf_clf = 62 vs 66

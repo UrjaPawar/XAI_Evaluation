@@ -1,13 +1,11 @@
 import numpy as np
 import pandas as pd
-from conf import Conf
 import matplotlib.pyplot as plt
 import joblib
 import math
 from sklearn.linear_model import LogisticRegression
 from scipy import stats
 
-pd.options.plotting.backend = "plotly"
 def plot_side_by_side(dataframe):
     '''
     :param dataframe: with columns as index of x axis and values in y axis
