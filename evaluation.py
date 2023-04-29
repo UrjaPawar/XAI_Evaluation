@@ -135,25 +135,41 @@ class Evaluation:
         return len(outputs[outputs != output]) / len(outputs)
 
 
-datasets = ["diab_without_insulin", "heart_db","cerv"]
+
+# for diabetes we have only used shorten version of dataset, but for 4,5 we  used full
+# random 4th diab is fully run
+datasets = ["diab_without_insulin","cerv","heart_db"]
 ticks = ["SHAP", "K-LIME", "DICE-CF", "SUFF", "NECE"]
 clfs = [ "MLP", "Log-Reg","SVM"]
 # expl_contexts = ["medical", "random"]
 # nbr_jsons = ["none", "prob"]
 expl_context = "medical"
 nbr_json = "none"
+
 for data_name in datasets:
     for model_name in clfs:
         input_data = {"data": data_name, "classifier": model_name, "fold": "fold1", "explanandum_context": expl_context,
                       "nbr_json": nbr_json}
         print(input_data)
         eval = Evaluation(input_data)
-        for top_k in tqdm([1,2,3]):
+        print(eval.get_recall())
+
+for data_name in datasets:
+    for model_name in clfs:
+        input_data = {"data": data_name, "classifier": model_name, "fold": "fold1", "explanandum_context": expl_context,
+                      "nbr_json": nbr_json}
+        print(input_data)
+        eval = Evaluation(input_data)
+        if data_name == "diab_without_insulin":
+            v = [4,5]
+        else:
+            v = [1,2,3,4,5]
+        for top_k in tqdm(v):
             ex_score_list = []
             suff_nece_corr = []
             dump_path = expl_context + "_eval/" + nbr_json + "/" +\
                         input_data['data'] + "/" + input_data["classifier"] + "/"
-            for ind in tqdm(range(len(eval.testdf.iloc[:60]))):
+            for ind in tqdm(range(len(eval.testdf.iloc[:100]))):
                 original_sample = eval.testdf[eval.features].iloc[ind].copy()
                 output = eval.clf.predict([original_sample])[0]
                 lime_old = eval.xai.get_lime(original_sample, True, None)

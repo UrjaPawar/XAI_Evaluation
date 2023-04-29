@@ -57,7 +57,7 @@ features = obj.data.features
 #         joblib.dump(test, current + "/test")
 #         fold+=1
 #
-# path = "analysis_outputs/heart_db"
+# path = "analysis_outputs/heart_db_old"
 # mkdir_p(path)
 # save_models(path)
 
@@ -306,7 +306,7 @@ def get_clusters(ind):
 #             # for cerv
 #             for expln in lime_vals.as_list():
 #                 scores.append(abs(expln[1]))
-#             # for heart_db
+#             # for heart_db_old
 #             # for expln in lime_vals.as_list():
 #             #     for f in obj.feats:
 #             #         if f in expln[0]:
@@ -326,7 +326,7 @@ def get_clusters(ind):
 #             # for cerv
 #             for expln in lime_vals.as_list():
 #                 scores.append(abs(expln[1]))
-#             # for heart_db
+#             # for heart_db_old
 #             # for expln in lime_vals.as_list():
 #             #     for f in obj.feats:
 #             #         if f in expln[0]:
@@ -427,7 +427,7 @@ def get_suff_nece(path):
                  obj.feats, (20, 10), path+fold_path+"/suff_nece")
     print("ok")
 
-# get_suff_nece("analysis_outputs/heart_db/")
+# get_suff_nece("analysis_outputs/heart_db_old/")
 
 def get_confidence(path):
     import joblib
@@ -492,7 +492,7 @@ def get_confidence(path):
         # joblib.dump(cred_rf, path + fold_path + "/cred_scores_rf")
     print("ok")
 
-# get_confidence("analysis_outputs/heart_db/")
+# get_confidence("analysis_outputs/heart_db_old/")
 from matplotlib.pyplot import figure
 figure(figsize=(20, 15), dpi=120)
 def plot_results(inds,path,j):
@@ -609,7 +609,7 @@ plot_results(inds,path,c)
     # plt.savefig("arb/variancerf"+str(i)+'.png')
     # plt.clf()
     # bar_plot([suff, nece, shapp, limee,confs ], ["SUFF", "NECE", "SHAP", "LIME", "Conf"], features, (20, 10), "combined")
-# path = "analysis_outputs/heart_db"
+# path = "analysis_outputs/heart_db_old"
 # mkdir_p(path)
 # save_models(path)
 

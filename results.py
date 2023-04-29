@@ -15,12 +15,12 @@ from sklearn.linear_model import LogisticRegression
 
 pd.options.plotting.backend = "plotly"
 
-input_data = { "data": "heart_db", "classifier": "MLP", "fold": "fold1", "mahalonobis_size": 2}
+input_data = { "data": "heart_db_old", "classifier": "MLP", "fold": "fold1", "mahalonobis_size": 2}
 
 
 
 def validate_input():
-    data_list = ["heart_db", "cerv", "diab_insulin","diab_without_insulin"]
+    data_list = ["heart_db_old", "cerv", "diab_insulin","diab_without_insulin"]
     model_list = ["rf_clf", "log_clf", "SVM"]
     fold_list = ["fold"+str(i) for i in range(1,6)]
     if input_data["data"] not in data_list:
@@ -52,7 +52,7 @@ def get_recall():
 
 def get_data(hot_encode):
     data = None
-    if input_data["data"] == "heart_db":
+    if input_data["data"] == "heart_db_old":
         data = Data("Heart DB", hot_encode)
     elif input_data["data"] == "cerv":
         data = Data("Cervical DB", hot_encode)
@@ -436,7 +436,7 @@ print("oj")
 #
 '''
 results:
-heart_db db:
+heart_db_old db:
     with random neighbors + replacement with sample vs custom FI
     log_clf = 58 vs 32
     rf_clf = 62 vs 66

@@ -16,6 +16,7 @@ from sklearn import svm
 from sklearn.neural_network import MLPClassifier
 import statistics
 import warnings
+import dice_ml
 
 warnings.filterwarnings("ignore")
 def get_data(hot_encode):
@@ -28,7 +29,7 @@ def get_data(hot_encode):
         data = Data("Diabetes DB", hot_encode, pick_without_insulin=True)
     return data
 
-input_data = {"data": "diab_without_insulin", "classifier": "SVM", "fold": "fold1"}
+input_data = {"data": "heart_db", "classifier": "SVM", "fold": "fold1"}
 path = "analysis_outputs/" + input_data["data"] + "/" + input_data["fold"]
 
 test_inds = joblib.load(path + "/test")
@@ -91,19 +92,11 @@ density = Density(data)
 clusters = list(density.get_cluster(traindf[data.features]))
 nece_suff = Nece_Suff(context)
 
-def get_lime(sample_for_lime, original, nbrhood_):
-    if original:
-        cluster = density.get_cluster([sample_for_lime])[0]
-        nbrhood = traindf[clusters==cluster]
-    else:
-        nbrhood = nbrhood_
-
-    lime_log = LogisticRegression()
-    lime_log.fit(nbrhood[data.features], clf.predict(nbrhood[data.features]))
-    return lime_log.coef_[0]
 
 
-
+densities = density.get_density_score(testdf[data.features])
+top_10_high_density = np.argsort(densities)[-10:]
+top_10_low_density = np.argsort(densities)[:10]
 shap_org = SHAP_LIME(clf, data, train_inds, input_data["classifier"], custom_neighborhood=traindf)
 
 features = np.array(data.features)
@@ -111,7 +104,7 @@ features = np.array(data.features)
 # featurestoy_data_continuous =
 # toy_data_categorical =
 # toy_data_binary =
-def ex3(sample_for_ex3, n, scores, output, clf):
+def ex3(sample_for_ex3, n, k, scores, output, clf):
     total = 0
     points = 0
     for i in range(200):
@@ -124,9 +117,10 @@ def ex3(sample_for_ex3, n, scores, output, clf):
                 temp[feat] = statistics.mode(traindf[feat])
         if clf.predict([temp])[0]!=output:
             scores = np.array(scores)
-            max_score = np.argmax(scores[features_to_change_from])
-            maxi_feature = features[np.argmax(max_score)]
-            temp[maxi_feature] = sample_for_ex3[maxi_feature]
+            inds_sorted = np.argsort(scores[features_to_change_from])
+            features_revert = features[inds_sorted[-k:]]
+            for feature_revert in features_revert:
+                temp[feature_revert] = sample_for_ex3[feature_revert]
             if clf.predict([temp])[0]!=output:
                 points+=1
             total+=1
@@ -176,7 +170,7 @@ ex1s_prob = []
 ex2s_prob = []
 ex3s_prob = []
 for nbr_json in ["none","prob"]:
-    for top_k in tqdm([1,2,3,4]):
+    for top_k in tqdm([1, 2, 3, 4, 5, 6]):
         ex1 = []
         ex2 = []
         ex3 = []
@@ -187,7 +181,7 @@ for nbr_json in ["none","prob"]:
             exs = np.array(ex_scores)
             ex1.append(np.mean(exs[:, 0], axis=0))
             ex2.append(np.mean(exs[:, 1], axis=0))
-            ex3.append(np.mean(exs[:, 2], axis=0))
+            # ex3.append(np.mean(exs[:, 2], axis=0))
         if nbr_json=="none":
             ex1s_none.append(ex1)
             ex2s_none.append(ex2)
@@ -199,13 +193,14 @@ for nbr_json in ["none","prob"]:
 
 ticks = ["shap_old", "lime_old", "suff_mb_false", "nece_mb_false"]
 clfs = ["MLP", "SVM", "log_clf"]
-for top_k in [1,2,3,4]:
+
+for top_k in [1,2,3,4,5,6]:
     dump_path = input_data['data'] + "/" + "prob" + "/"
-    df_1 = pd.DataFrame(data=ex1s_prob[top_k-1], columns=ticks)
+    df_1 = pd.DataFrame(data=ex2s_prob[top_k-1], columns=ticks)
     df_1.index = clfs
     ax = df_1.plot.bar()
-    ax.set_title("Explanandum 1, with top "+str(top_k)+" features")
-    plt.savefig(dump_path+"ex1_top_"+str(top_k)+".png")
+    ax.set_title("Explanandum 2, with top "+str(top_k)+" features")
+    plt.savefig(dump_path+"ex2_top_"+str(top_k)+".png")
     plt.clf()
 # df_2 = pd.DataFrame(data=ex1s_none[1], columns=ticks)
 # df_3 = pd.DataFrame(data=ex1s_none[2], columns=ticks)
@@ -214,6 +209,8 @@ print("ok")
 
 
 # TODO check with use range =True explanandums
+# TODO Finalise neighborhood for each thing - nece suff neigbhborhood none with mb,
+# TODO density wise analysis of correlation and explananda
 neighborhood_json_none = {"no_of_neighbours": 500, "probability": False, "bound": True,"use_range": False, "truly_random": True}
 neighborhood_json_prob_range = {"no_of_neighbours": 500, "probability": True, "bound": True,"use_range": True, "truly_random": True}
 neighborhood_json_prob = {"no_of_neighbours": 500, "probability": True, "bound": True,"use_range": False, "truly_random": True}
